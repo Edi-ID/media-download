@@ -61,7 +61,6 @@ HTML = """<!DOCTYPE html>
   input:focus { border-color: #007BFF; box-shadow: 0 0 0 3px rgba(0,123,255,0.25); }
   .btn-paste { padding: 13px 14px; border-radius: 12px; background: #fff; color: #111; font-size: 16px; flex-shrink: 0; margin: 0; }
   .btn-paste:hover { background: #eee; }
-  /* TOMBOL UTAMA - GRADIENT + PULSE KEREN */
   .btn-utama {
     width: 100%; padding: 15px 22px; border: none; border-radius: 14px;
     background: linear-gradient(135deg, #007BFF, #00C6FF, #7B61FF);
@@ -76,7 +75,9 @@ HTML = """<!DOCTYPE html>
   button:hover { transform: translateY(-2px); }
   button.green { background: linear-gradient(135deg, #25D366, #128C7E); }
   img, video { max-width: 100%; border-radius: 12px; margin-top: 12px; }
-  video { width: 100%; background: #000; }
+  video { width: 100%; background: #000; aspect-ratio: 9/16; object-fit: cover; }
+  .video-wrap { position: relative; width: 100%; max-width: 380px; margin: 12px auto 0 auto; border-radius: 14px; overflow: hidden; background: #000; }
+  .video-wrap video { margin: 0; border-radius: 0; display: block; }
   #hasil h3 { animation: naik 0.4s ease; }
   footer { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--card); backdrop-filter: blur(10px); padding: 10px 22px; font-size: 13px; color: var(--muted); border-radius: 50px; box-shadow: var(--shadow); white-space: nowrap; z-index: 99; }
   footer b { color: var(--text); font-size: 14px; }
@@ -126,8 +127,23 @@ HTML = """<!DOCTYPE html>
     let r = await fetch('/info', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({url})});
     let d = await r.json();
     if(d.error) return document.getElementById('hasil').innerHTML = '<p style="color:red">'+d.error+'</p>';
-    let player = d.video_url ? `<video controls playsinline src="${d.video_url}" poster="${d.thumbnail}"></video>` : `<img src="${d.thumbnail}">`;
+    let player = '';
+    if(d.video_url){
+      player = `<div class="video-wrap">
+        <video id="vid" controls loop playsinline preload="metadata" src="${d.video_url}" poster="${d.thumbnail}"></video>
+      </div>`;
+    } else {
+      player = `<img src="${d.thumbnail}">`;
+    }
     document.getElementById('hasil').innerHTML = player + `<h3>${d.title}</h3><p>${d.uploader}</p><button class="green" onclick="dl(false)">⬇️ VIDEO</button><button onclick="dl(true)">🎵 MP3</button>`;
+    let v = document.getElementById('vid');
+    if(v){
+      v.loop = true;
+      v.muted = false;
+      v.volume = 1;
+      v.currentTime = 0;
+      v.pause();
+    }
   }
   async function dl(audio){
     let url = document.getElementById('url').value;
