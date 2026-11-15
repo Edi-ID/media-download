@@ -1,5 +1,5 @@
 /* ==================================
-   1. WARNA & TEMA
+   1. WARNA & DASAR
    ================================== */
 :root {
   --bg: #050b17;
@@ -11,8 +11,33 @@
   --shadow: 0 8px 25px rgba(0, 0, 0, 0.35);
 }
 
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 90px;
+  text-align: center;
+  color: var(--text);
+  background: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.topbar,
+.container,
+footer {
+  position: relative;
+  z-index: 1;
+}
+
 /* ==================================
-   2. BACKGROUND BERGERAK
+   2. BACKGROUND - GRADASI + JARING
    ================================== */
 #bg-canvas {
   position: fixed;
@@ -36,27 +61,6 @@
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
-}
-
-body {
-  margin: 0;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  padding-bottom: 90px;
-  text-align: center;
-  color: var(--text);
-  background: transparent;
-  -webkit-user-select: none;
-  user-select: none;
-}
-
-/* Biar konten di atas background */
-.topbar,
-.container,
-footer {
-  position: relative;
-  z-index: 1;
 }
 
 /* ==================================
@@ -83,7 +87,7 @@ footer {
 }
 
 /* ==================================
-   4. TOPBAR & LOGO - VERSI RAPI
+   4. TOPBAR & BADGE ID
    ================================== */
 .topbar {
   display: flex;
@@ -123,7 +127,7 @@ footer {
 }
 
 /* ==================================
-   5. KOTAK / BOX
+   5. KOTAK / BOX PUTIH
    ================================== */
 .box {
   background: rgba(255, 255, 255, 0.88);
@@ -164,6 +168,7 @@ p.sub {
 
 input {
   flex: 1;
+  min-width: 0;
   padding: 13px 14px;
   border-radius: 12px;
   border: 1px solid rgba(128, 128, 128, 0.3);
@@ -280,6 +285,11 @@ video {
 
 #hasil h3 {
   animation: naik 0.4s ease;
+  word-break: break-word;
+}
+
+#hasil p {
+  word-break: break-word;
 }
 
 /* ==================================
@@ -304,4 +314,4 @@ footer {
 footer b {
   color: #0c1222;
   font-size: 14px;
-}
+        }
