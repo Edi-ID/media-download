@@ -3,37 +3,25 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Media Downloader</title>
+  <title>All Downloader</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-
-  <!-- ================================== -->
-  <!-- 1. BACKGROUND BERGERAK -->
-  <!-- ================================== -->
   <canvas id="bg-canvas"></canvas>
   <div class="bg-gradient"></div>
 
-  <!-- ================================== -->
-  <!-- 2. TOPBAR RAPI -->
-  <!-- ================================== -->
   <div class="topbar">
-    <div class="logo">💥 Sosial Media Downloader</div>
+    <div class="logo">⬇️ Sosial Media Downloader</div>
     <div class="badge-id">ID 🇮🇩</div>
   </div>
 
-  <!-- ================================== -->
-  <!-- 3. KONTEN UTAMA -->
-  <!-- ================================== -->
   <div class="container">
     <p class="sub">TikTok ✅ Instagram ✅ Facebook ✅</p>
-
     <div class="box">
       <div class="input-row">
         <input id="url" placeholder="Masukkan Link disini...">
         <button class="btn-paste" onclick="pasteLink()" title="Paste Link">📋</button>
       </div>
-
       <button class="btn-utama" onclick="cek()">⬇️ Download Video MP4/MP3</button>
       <div id="hasil"></div>
     </div>
@@ -41,59 +29,35 @@
 
   <footer>Created By: <b>@idgarsell</b> ✨</footer>
 
-<!-- ================================== -->
-<!-- 4. JAVASCRIPT UTAMA -->
-<!-- ================================== -->
 <script>
-  /* ---------- Paste Link ---------- */
   async function pasteLink(){
     try{
       const text = await navigator.clipboard.readText();
-      if(text){
-        document.getElementById('url').value = text;
-        cek();
-      } else {
-        alert('Copy dulu link-nya');
-      }
-    }catch(e){
-      alert('izin clipboard belum dikasih, paste manual Aja');
-    }
+      if(text){ document.getElementById('url').value = text; cek(); }
+      else { alert('Copy dulu link-nya'); }
+    }catch(e){ alert('izin clipboard belum dikasih, paste manual Aja'); }
   }
 
-  /* ---------- Cek Info Video ---------- */
   async function cek(){
     let url = document.getElementById('url').value;
     if(url.includes('youtube.com') || url.includes('youtu.be')){
       return document.getElementById('hasil').innerHTML = '<p style="color:orange">⚠️ YouTube udah dihapus, soalnya sering kena blok. Pake TikTok / IG / FB aja ya!</p>';
     }
-    document.getElementById('hasil').innerHTML = '<p>⏳ Harap Tunggu Bentar... 🔎</p>';
-
+    document.getElementById('hasil').innerHTML = '<p>⏳ Harap Tunggu Bentar... 🔥</p>';
     let r = await fetch('/info', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({url})});
     let d = await r.json();
     if(d.error) return document.getElementById('hasil').innerHTML = '<p style="color:red">'+d.error+'</p>';
-
     let player = '';
     if(d.video_url){
-      player = `<div class="video-wrap">
-        <video id="vid" controls loop playsinline preload="metadata" src="${d.video_url}" poster="${d.thumbnail}"></video>
-      </div>`;
+      player = `<div class="video-wrap"><video id="vid" controls loop playsinline preload="metadata" src="${d.video_url}" poster="${d.thumbnail}"></video></div>`;
     } else {
       player = `<img src="${d.thumbnail}">`;
     }
-
-    document.getElementById('hasil').innerHTML = player + `<h3>${d.title}</h3><p>${d.uploader}</p><button class="green" onclick="dl(false)">VIDEO</button><button onclick="dl(true)">MP3</button>`;
-
+    document.getElementById('hasil').innerHTML = player + `<h3>${d.title}</h3><p>${d.uploader}</p><button class="green" onclick="dl(false)">⬇️ VIDEO</button><button onclick="dl(true)">🎵 MP3</button>`;
     let v = document.getElementById('vid');
-    if(v){
-      v.loop = true;
-      v.muted = false;
-      v.volume = 1;
-      v.currentTime = 0;
-      v.pause();
-    }
+    if(v){ v.loop = true; v.muted = false; v.volume = 1; v.currentTime = 0; v.pause(); }
   }
 
-  /* ---------- Download ---------- */
   async function dl(audio){
     let url = document.getElementById('url').value;
     let r = await fetch('/download', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({url, audio})});
@@ -102,68 +66,27 @@
     window.location.href = d.file;
   }
 
-  /* ================================== */
-  /* 5. BACKGROUND JARING-JARING */
-  /* ================================== */
   const canvas = document.getElementById('bg-canvas');
   const ctx = canvas.getContext('2d');
   let dots = [];
-
-  function resizeCanvas(){
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-  }
+  function resizeCanvas(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
   resizeCanvas();
   window.addEventListener('resize', resizeCanvas);
-
-  // Bikin 60 titik
   for(let i = 0; i < 60; i++){
-    dots.push({
-      x: Math.random() * window.innerWidth,
-      y: Math.random() * window.innerHeight,
-      vx: (Math.random() - 0.5) * 0.5,
-      vy: (Math.random() - 0.5) * 0.5,
-      r: Math.random() * 2 + 1
-    });
+    dots.push({ x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight, vx: (Math.random() - 0.5) * 0.5, vy: (Math.random() - 0.5) * 0.5, r: Math.random() * 2 + 1 });
   }
-
   function gambar(){
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Gambar garis penghubung antar titik yang deket
     for(let i = 0; i < dots.length; i++){
       for(let j = i + 1; j < dots.length; j++){
-        let dx = dots[i].x - dots[j].x;
-        let dy = dots[i].y - dots[j].y;
-        let jarak = Math.sqrt(dx*dx + dy*dy);
-        if(jarak < 130){
-          ctx.strokeStyle = `rgba(255,255,255,${(1 - jarak/130) * 0.25})`;
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(dots[i].x, dots[i].y);
-          ctx.lineTo(dots[j].x, dots[j].y);
-          ctx.stroke();
-        }
+        let dx = dots[i].x - dots[j].x; let dy = dots[i].y - dots[j].y; let jarak = Math.sqrt(dx*dx + dy*dy);
+        if(jarak < 130){ ctx.strokeStyle = `rgba(255,255,255,${(1 - jarak/130) * 0.25})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(dots[i].x, dots[i].y); ctx.lineTo(dots[j].x, dots[j].y); ctx.stroke(); }
       }
     }
-
-    // Gambar titik + gerakin
-    for(let d of dots){
-      ctx.fillStyle = 'rgba(255,255,255,0.8)';
-      ctx.beginPath();
-      ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
-      ctx.fill();
-
-      d.x += d.vx;
-      d.y += d.vy;
-
-      if(d.x < 0 || d.x > canvas.width) d.vx *= -1;
-      if(d.y < 0 || d.y > canvas.height) d.vy *= -1;
-    }
+    for(let d of dots){ ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2); ctx.fill(); d.x += d.vx; d.y += d.vy; if(d.x < 0 || d.x > canvas.width) d.vx *= -1; if(d.y < 0 || d.y > canvas.height) d.vy *= -1; }
     requestAnimationFrame(gambar);
   }
   gambar();
 </script>
-
 </body>
 </html>
