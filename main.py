@@ -3,6 +3,7 @@
 # ==================================
 import os
 import re
+from urllib.parse import quote, unquote
 from flask import Flask, request, jsonify, send_file, render_template
 import yt_dlp
 import requests
@@ -14,16 +15,49 @@ os.makedirs("downloads", exist_ok=True)
 # 2. FUNGSI BANTU
 # ==================================
 def bersih_nama(nama):
-    # Buang karakter yang gak boleh buat nama file
+    if not nama:
+        return "video"
+
+    # 1. Buang semua link (shopee, fb, http, httpss, dll)
+    nama = re.sub(r'https+s?://\S+', '', nama, flags=re.IGNORECASE)
+    nama = re.sub(r'https+s?\.?\S*shopee\S*', '', nama, flags=re.IGNORECASE)
+    nama = re.sub(r'\b\w*shopee\.\S+', '', nama, flags=re.IGNORECASE)
+    nama = re.sub(r'\b(?:https?|http|httpss|www)\S*', '', nama, flags=re.IGNORECASE)
+    nama = re.sub(r'\b\S+\.(?:co\.id|com|id|net|org)\S*', '', nama, flags=re.IGNORECASE)
+
+    # 2. Buang pola kotor di depan: "12K reactions · 22 shares" / "8.8K views · 836 reactions"
+    for _ in range(3):
+        baru = re.sub(
+            r'^\s*[\d\.,KkMmB]+\s*(views?|reactions?|shares?|likes?|comments?)\s*[·•\|\-–]*\s*([\d\.,KkMmB]+\s*(views?|reactions?|shares?|likes?|comments?)\s*[·•\|\-–]*\s*)?',
+            '',
+            nama,
+            flags=re.IGNORECASE
+        )
+        if baru == nama:
+            break
+        nama = baru
+
+    # 3. Cadangan kalo masih ada sisa
+    nama = re.sub(r'^\s*.*?reactions?\s*[·•\|\-–]*', '', nama, flags=re.IGNORECASE)
+    nama = re.sub(r'^\s*.*?shares?\s*[·•\|\-–]*', '', nama, flags=re.IGNORECASE)
+
+    # 4. Buang karakter terlarang & rapikan
     nama = re.sub(r'[\\/*?:"<>|]', '', nama)
-    return nama[:80].strip() or "video"
+    nama = re.sub(r'\s+', ' ', nama).strip()
+    # INI YANG BIKIN ....mp4 ILANG: buang titik-titik di ujung judul
+    nama = nama.rstrip('. ').strip()
+    # Buang .... di tengah juga kalo ada
+    nama = re.sub(r'\.{2,}', '', nama).strip()
+    return nama[:80].rstrip('. ').strip() or "video"
 
 def get_opts(is_audio=False):
     opts = {
         'quiet': True,
         'no_warnings': True,
-        'outtmpl': os.path.join("downloads", '%(title).80s.%(ext)s'),
-        'restrictfilenames': True,
+        # FIX 1: pake ID aja, jangan pake title. Biar gak kepotong jadi ....mp4
+        'outtmpl': os.path.join("downloads", '%(id)s.%(ext)s'),
+        # FIX 2: False, biar gak jadi _.mp4 (huruf Thailand / emoji gak diubah jadi _)
+        'restrictfilenames': False,
         'user_agent': 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
         'socket_timeout': 30,
         'retries': 3,
@@ -34,11 +68,11 @@ def get_opts(is_audio=False):
             'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}]
         })
     else:
+        # JANGAN pake remux / recode, bikin error ffmpeg not found
         opts.update({'format': 'best[ext=mp4]/best'})
     return opts
 
 def tiktok_via_tikwm(url):
-    # TikTok pake API TikWM biar lebih stabil
     try:
         r = requests.get("https://www.tikwm.com/api/", params={"url": url}, timeout=20, headers={"User-Agent": "Mozilla/5.0"})
         j = r.json()
@@ -72,6 +106,7 @@ def info():
     if "tiktok.com" in url or "vt.tiktok" in url:
         data = tiktok_via_tikwm(url)
         if data:
+            data['title'] = bersih_nama(data.get('title', ''))
             return jsonify(data)
 
     try:
@@ -84,7 +119,7 @@ def info():
                         video_url = f.get('url')
                         break
             return jsonify({
-                'title': data.get('title', ''),
+                'title': bersih_nama(data.get('title', '')),
                 'thumbnail': data.get('thumbnail', ''),
                 'uploader': data.get('uploader', ''),
                 'video_url': video_url
@@ -108,7 +143,7 @@ def download():
                 fn = os.path.join("downloads", bersih_nama(d["title"]) + ".mp4")
                 with open(fn, "wb") as f:
                     f.write(r.content)
-                return jsonify({'file': f"/file/{os.path.basename(fn)}?nama={os.path.basename(fn)}"})
+                return jsonify({'file': f"/file/{quote(os.path.basename(fn))}"})
         except Exception as e:
             print("TikTok download gagal:", e)
 
@@ -118,15 +153,35 @@ def download():
             fn = ydl.prepare_filename(data)
             if is_audio:
                 fn = os.path.splitext(fn)[0] + '.mp3'
-            nama_rapi = bersih_nama(data.get('title', 'video')) + os.path.splitext(fn)[1]
-            return jsonify({'file': f"/file/{os.path.basename(fn)}?nama={nama_rapi}"})
+
+            # FIX 3: Paksa selalu .mp4 / .mp3 + RENAME file asli
+            ext = '.mp3' if is_audio else '.mp4'
+            nama_rapi = bersih_nama(data.get('title', 'video')) + ext
+
+            path_baru = os.path.join("downloads", nama_rapi)
+            try:
+                if os.path.abspath(fn) != os.path.abspath(path_baru):
+                    if os.path.exists(path_baru):
+                        os.remove(path_baru)
+                    os.rename(fn, path_baru)
+                    fn = path_baru
+            except Exception as e:
+                print("Rename gagal:", e)
+
+            # FIX 4: Jangan pake ?nama= lagi, langsung kirim nama file yang udah bersih
+            return jsonify({'file': f"/file/{quote(os.path.basename(fn))}"})
     except Exception as e:
         return jsonify({'error': str(e)[:300]}), 400
 
 @app.route('/file/<name>')
 def serve_file(name):
-    nama = request.args.get('nama', name)
-    return send_file(os.path.join("downloads", name), as_attachment=True, download_name=nama)
+    name = unquote(name)
+    path = os.path.join("downloads", name)
+    if name.lower().endswith('.mp3'):
+        mimetype = 'audio/mpeg'
+    else:
+        mimetype = 'video/mp4'
+    return send_file(path, as_attachment=True, download_name=name, mimetype=mimetype)
 
 # ==================================
 # 4. JALANKAN SERVER
