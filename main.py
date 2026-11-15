@@ -3,6 +3,7 @@
 # ==================================
 import os
 import re
+import glob
 from urllib.parse import quote, unquote
 from flask import Flask, request, jsonify, send_file, render_template
 import yt_dlp
@@ -46,7 +47,6 @@ def bersih_nama(nama):
     nama = re.sub(r'\s+', ' ', nama).strip()
     # INI YANG BIKIN ....mp4 ILANG: buang titik-titik di ujung judul
     nama = nama.rstrip('. ').strip()
-    # Buang .... di tengah juga kalo ada
     nama = re.sub(r'\.{2,}', '', nama).strip()
     return nama[:80].rstrip('. ').strip() or "video"
 
@@ -54,21 +54,22 @@ def get_opts(is_audio=False):
     opts = {
         'quiet': True,
         'no_warnings': True,
-        # FIX 1: pake ID aja, jangan pake title. Biar gak kepotong jadi ....mp4
+        # FIX: Pake ID aja biar gak jadi ....mp4
         'outtmpl': os.path.join("downloads", '%(id)s.%(ext)s'),
-        # FIX 2: False, biar gak jadi _.mp4 (huruf Thailand / emoji gak diubah jadi _)
+        # FIX: False biar gak jadi _.mp4 (huruf Thailand / emoji gak diubah jadi _)
         'restrictfilenames': False,
         'user_agent': 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
         'socket_timeout': 30,
         'retries': 3,
     }
     if is_audio:
+        # FIX FINAL: JANGAN pake FFmpegExtractAudio, itu biang ffmpeg not found
+        # Langsung ambil audio terbaik (m4a), nanti di-rename jadi .mp3
         opts.update({
-            'format': 'bestaudio/best',
-            'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}]
+            'format': 'bestaudio[ext=m4a]/bestaudio/best'
         })
     else:
-        # JANGAN pake remux / recode, bikin error ffmpeg not found
+        # Video juga JANGAN pake remux / recode
         opts.update({'format': 'best[ext=mp4]/best'})
     return opts
 
@@ -151,10 +152,24 @@ def download():
         with yt_dlp.YoutubeDL(get_opts(is_audio)) as ydl:
             data = ydl.extract_info(url, download=True)
             fn = ydl.prepare_filename(data)
-            if is_audio:
-                fn = os.path.splitext(fn)[0] + '.mp3'
 
-            # FIX 3: Paksa selalu .mp4 / .mp3 + RENAME file asli
+            if is_audio:
+                # File aslinya bisa .m4a / .webm / .opus, cari yang beneran ada
+                base = os.path.splitext(fn)[0]
+                fn_ketemu = None
+                for ext_coba in ['.m4a', '.webm', '.mp3', '.opus', '.mp4']:
+                    if os.path.exists(base + ext_coba):
+                        fn_ketemu = base + ext_coba
+                        break
+                # Cadangan: cari pake glob kalo ID-nya beda
+                if not fn_ketemu:
+                    hasil = glob.glob(base + ".*")
+                    if hasil:
+                        fn_ketemu = hasil[0]
+                if fn_ketemu:
+                    fn = fn_ketemu
+
+            # Paksa selalu .mp4 / .mp3 + RENAME file asli
             ext = '.mp3' if is_audio else '.mp4'
             nama_rapi = bersih_nama(data.get('title', 'video')) + ext
 
@@ -168,7 +183,7 @@ def download():
             except Exception as e:
                 print("Rename gagal:", e)
 
-            # FIX 4: Jangan pake ?nama= lagi, langsung kirim nama file yang udah bersih
+            # Jangan pake ?nama= lagi, langsung kirim nama file yang udah bersih
             return jsonify({'file': f"/file/{quote(os.path.basename(fn))}"})
     except Exception as e:
         return jsonify({'error': str(e)[:300]}), 400
