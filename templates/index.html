@@ -5,6 +5,41 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Media Downloader</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    /* STYLE BARU BUAT PILIHAN KUALITAS */
+    .quality-wrap{
+      margin-top:12px;
+      text-align:left;
+    }
+    .quality-wrap label{
+      font-size:13px;
+      font-weight:bold;
+      color:#333;
+      margin-left:4px;
+    }
+    #quality{
+      width:100%;
+      padding:12px;
+      border-radius:12px;
+      border:2px solid #e0e0e0;
+      background:white;
+      font-weight:bold;
+      font-size:15px;
+      text-align:center;
+      margin-top:6px;
+      outline:none;
+      cursor:pointer;
+    }
+    #quality:focus{
+      border-color:#3b82f6;
+    }
+    .quality-note{
+      font-size:11px;
+      color:#666;
+      text-align:center;
+      margin-top:6px;
+    }
+  </style>
 </head>
 <body>
   <canvas id="bg-canvas"></canvas>
@@ -22,6 +57,20 @@
         <input id="url" placeholder="Masukkan Link disini...">
         <button class="btn-paste" onclick="pasteLink()" title="Paste Link">📋</button>
       </div>
+
+      <!-- === PILIHAN KUALITAS === -->
+      <div class="quality-wrap">
+        <label for="quality">🎞️ Pilih Kualitas Video :</label>
+        <select id="quality">
+          <option value="360">360p - Hemat Kuota 📱</option>
+          <option value="480">480p - Standar</option>
+          <option value="720" selected>720p - HD (Rekomendasi) ✨</option>
+          <option value="1080">1080p - Full HD 🔥</option>
+          <option value="best">Kualitas Terbaik 🚀</option>
+        </select>
+        <div class="quality-note">• TikTok Cuma ada 1 kualitas, jadi pilihan ini khusus IG / FB •</div>
+      </div>
+
       <button class="btn-utama" onclick="cek()">Download Video MP4/MP3</button>
       <div id="hasil"></div>
     </div>
@@ -60,9 +109,14 @@
 
   async function dl(audio){
     let url = document.getElementById('url').value;
-    let r = await fetch('/download', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({url, audio})});
+    // === AMBIL KUALITAS DARI DROPDOWN ===
+    let quality = document.getElementById('quality').value;
+    // Kalo MP3, kualitas gak dipake, tapi tetep dikirim biar aman
+    document.getElementById('hasil').innerHTML += '<p>⏳ Sedang Download Harap Tunggu... 🚀</p>';
+    let r = await fetch('/download', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({url, audio, quality})});
     let d = await r.json();
     if(d.error) return alert(d.error);
+    if(d.note) alert(d.note);
     window.location.href = d.file;
   }
 
