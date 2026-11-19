@@ -41,8 +41,8 @@ def bersih_nama(nama):
     nama = re.sub(r'\.{2,}', '', nama).strip()
     return nama[:80].rstrip('. ').strip() or "video"
 
-# === ADA QUALITY ===
-def get_opts(is_audio=False, quality='720'):
+# === ADA QUALITY + COOKIES PER PLATFORM ===
+def get_opts(is_audio=False, quality='720', url=''):
     opts = {
         'quiet': True,
         'no_warnings': True,
@@ -52,6 +52,31 @@ def get_opts(is_audio=False, quality='720'):
         'socket_timeout': 30,
         'retries': 3,
     }
+
+    # === PILIH COOKIES SESUAI PLATFORM - KTP NYA BEDA-BEDA! ===
+    cookie_file = None
+    url_lower = url.lower()
+    if "facebook.com" in url_lower or "fb.watch" in url_lower or "fb.gg" in url_lower:
+        # KTP Facebook
+        if os.path.exists("cookies_fb.txt"):
+            cookie_file = "cookies_fb.txt"
+    elif "instagram.com" in url_lower or "instagr.am" in url_lower:
+        # KTP Instagram (kalo ada)
+        if os.path.exists("cookies_ig.txt"):
+            cookie_file = "cookies_ig.txt"
+    elif "tiktok.com" in url_lower or "vt.tiktok" in url_lower:
+        # TikTok gak usah pake cookies, biar lewat tikwm aja
+        cookie_file = None
+    else:
+        # Selain itu pake cookies YouTube / default
+        if os.path.exists("cookies.txt"):
+            cookie_file = "cookies.txt"
+
+    if cookie_file:
+        opts['cookiefile'] = cookie_file
+        print(f"Pake cookies: {cookie_file} buat {url[:60]}")
+    # ================================================
+
     if is_audio:
         opts.update({
             'format': 'bestaudio[ext=m4a]/bestaudio/best'
@@ -107,7 +132,7 @@ def info():
             data['title'] = bersih_nama(data.get('title', ''))
             return jsonify(data)
     try:
-        with yt_dlp.YoutubeDL(get_opts()) as ydl:
+        with yt_dlp.YoutubeDL(get_opts(url=url)) as ydl:
             data = ydl.extract_info(url, download=False)
             video_url = data.get('url', '')
             if not video_url and data.get('formats'):
@@ -148,7 +173,7 @@ def download():
 
     try:
         # === PASANG QUALITY KE SINI ===
-        with yt_dlp.YoutubeDL(get_opts(is_audio, quality)) as ydl:
+        with yt_dlp.YoutubeDL(get_opts(is_audio, quality, url)) as ydl:
             data = ydl.extract_info(url, download=True)
             fn = ydl.prepare_filename(data)
             if is_audio:
